@@ -1,7 +1,7 @@
 """                     Import libraries.                       """
 import lightgbm as lgbm
 import pandas as pd
-import pyzinga.mlflow_tools as mlfu
+import pyzinga.mlflow_tools as mlft
 from sklearn.metrics import (
     accuracy_score, f1_score, precision_score, recall_score, roc_auc_score, average_precision_score, log_loss, auc, 
     confusion_matrix, classification_report,
@@ -40,7 +40,7 @@ def model_eval_binary_classification(
             'Importance_gain': model.feature_importance(importance_type='gain').round(4),
         }).sort_values('Importance_split', ascending=False).reset_index(drop=True)
     
-    mlfu.log_artifact(
+    mlft.log_artifact(
         artifact=df_feature_imp,
         artifact_name='feature_importance.csv',
         artifact_path=path_artifact_azure_file
@@ -57,7 +57,7 @@ def model_eval_binary_classification(
             figsize=(10, 8)
         )
 
-        mlfu.log_artifact(
+        mlft.log_artifact(
             artifact=plot_feature_imp.figure,  # Get the figure from the plot.
             artifact_name=f"feature_importance_{imp_type}.png",
             artifact_path=path_artifact_azure_file
@@ -84,7 +84,7 @@ def model_eval_binary_classification(
             f"{dataset}_roc_auc": float(roc_auc_score(y_true, y_preds)),
             f"{dataset}_average_precision": float(average_precision_score(y_true, y_preds)),
         }
-        mlfu.log_metrics(metrics=metrics_model_eval)
+        mlft.log_metrics(metrics=metrics_model_eval)
         
         # Precision-recall curve.
         _, ax = plt.subplots(figsize=(10, 8)) # Create a custom figure and axes. width=10, height=8
@@ -93,7 +93,7 @@ def model_eval_binary_classification(
         disp = PrecisionRecallDisplay(precision=precision, recall=recall)
         disp.plot(ax=ax)  # Plot the precision-recall curve on the custom axes.
         ax.set_title(f"Precision-Recall Curve - '{dataset}' (AUC = {pr_auc_score:.2f})")
-        mlfu.log_artifact(
+        mlft.log_artifact(
             artifact=disp.figure_,
             artifact_name=f"precision_recall_curve_{dataset}.png",
             artifact_path=path_artifact_azure_plot
@@ -105,7 +105,7 @@ def model_eval_binary_classification(
         disp = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=float(roc_auc_score(y_true, y_preds)))
         disp.plot(ax=ax)  # Plot the ROC curve on the custom axes.
         ax.set_title(f"ROC-AUC Curve - '{dataset}' (AUC = {float(roc_auc_score(y_true, y_preds)):.2f})")
-        mlfu.log_artifact(
+        mlft.log_artifact(
             artifact=disp.figure_,
             artifact_name=f"roc_curve_{dataset}.png",
             artifact_path=path_artifact_azure_plot
@@ -117,7 +117,7 @@ def model_eval_binary_classification(
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot(ax=ax, cmap='Blues', values_format='d')  # Get the axes object
         ax.set_title(f"Confusion Matrix - '{dataset}' ({threshold = })")
-        mlfu.log_artifact(
+        mlft.log_artifact(
             artifact=disp.figure_,
             artifact_name=f"confusion_matrix_{dataset}.png",
             artifact_path=path_artifact_azure_plot
@@ -128,7 +128,7 @@ def model_eval_binary_classification(
         # https://stackoverflow.com/questions/39662398/scikit-learn-output-metrics-classification-report-into-csv-tab-delimited-format
         cr.update({"accuracy": {"precision": None, "recall": None, "f1-score": cr["accuracy"], "support": cr['macro avg']['support']}})
         df_cr = pd.DataFrame(cr).transpose()  # Convert the classification report to a DataFrame.
-        mlfu.log_artifact(
+        mlft.log_artifact(
             artifact=df_cr,
             artifact_name=f"classification_report_{dataset}.csv",
             artifact_path=path_artifact_azure_file
