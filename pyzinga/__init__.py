@@ -1,6 +1,6 @@
-from pyzinga.data_tools import split_data
+from .data_tools import split_data
 
-from pyzinga.mlflow_tools import (
+from .mlflow_tools import (
     setup_mlflow,
     log_params,
     log_metrics,
@@ -9,9 +9,9 @@ from pyzinga.mlflow_tools import (
     log_optuna_study,
 )
 
-from pyzinga.model_eval_tools import model_eval_binary_classification
+from .model_eval_tools import model_eval_binary_classification
 
-from pyzinga.plot_tools import plot_correlation_matrix
+from .plot_tools import plot_correlation_matrix
 
 __all__ = [
     "split_data",
