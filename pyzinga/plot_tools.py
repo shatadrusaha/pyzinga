@@ -28,7 +28,7 @@ def count_plot(
     col: str,
     figsize: Tuple[int, int] = DEFAULT_FIGSIZE,
     save_dir: Optional[str] = DEFAULT_SAVEDIR,
-    **kwargs,
+    **kwargs
 ) -> None:
     """
     Create a count plot for a categorical column.
@@ -95,7 +95,7 @@ def histogram_plot(
     figsize: Tuple[int, int] = DEFAULT_FIGSIZE,
     save_dir: Optional[str] = DEFAULT_SAVEDIR,
     prefix: Optional[str] = None,
-    **kwargs,
+    **kwargs
 ) -> None:
     """
     Create a histogram plot for a numerical column.
@@ -159,7 +159,7 @@ def box_plot(
     figsize: Tuple[int, int] = DEFAULT_FIGSIZE,
     save_dir: Optional[str] = DEFAULT_SAVEDIR,
     prefix: Optional[str] = None,
-    **kwargs,
+    **kwargs
 ) -> None:
     """
     Create a box plot for one or two columns.
@@ -263,7 +263,7 @@ def corr_heatmap_plot(
     save_dir: Optional[str] = DEFAULT_SAVEDIR,
     figsize: Tuple[int, int] = DEFAULT_FIGSIZE,
     mask_upper: bool = True,
-    **kwargs,
+    **kwargs
 ) -> None:
     """
     Create a correlation heatmap for numeric columns.
