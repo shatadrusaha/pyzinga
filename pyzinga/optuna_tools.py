@@ -2,49 +2,65 @@
 import lightgbm as lgbm
 import optuna
 import time
+import numpy as np
+from typing import Dict, Any, Optional
 from mlflow.models import infer_signature
 from . import mlflow_tools as mlft
 from . import model_eval_tools as met
 
-"""                     User defined funtions (for Optuna).                     """
-# Function to fix LightGBM parameters for compatibility.
-def fix_lgbm_params(params: Dict[str, Any]) -> Dict[str, Any]:
+"""                     User defined funtions for Optuna.                     """
+# Model training function for LightGBM.
+def train_lgbm_model(
+    params_model: Dict[str, Any],
+    params_data: Dict[str, Any],
+    params_model_eval: Dict[str, Any],
+    best_model: bool = False
+) -> Dict[str, float]:
     """
-    Ensure LightGBM parameters are compatible.
-
+    Train LightGBM model with given parameters and return metrics.
+    
     Parameters
     ----------
-    params : dict
-        Dictionary of LightGBM parameters.
-
+    params_model : Dict[str, Any]
+        Dictionary of LightGBM model parameters.
+    params_data : Dict[str, Any]
+        Dictionary containing training, validation and test data.
+        Should include 'X_train', 'y_train', 'X_val', 'y_val', 'X_test', 'y_test'.
+        Optional 'y_log' boolean flag for log transformation of target (regression only).
+    params_model_eval : Dict[str, Any]
+        Dictionary of model evaluation parameters.
+        Should include 'problem_type' specifying 'regression' or 'binary_classification'.
+    best_model : bool, default=False
+        Flag to indicate if this is the best model from optimization.
+        If True, additional evaluation metrics and model analysis will be logged.
+        
     Returns
     -------
-    dict
-        Updated LightGBM parameters.
+    Dict[str, float]
+        Dictionary of evaluation metrics calculated on the test dataset.
+        
+    Raises
+    ------
+    ValueError
+        If log transformation is requested for non-regression problems.
     """
-    if params.get('boosting') in ('rf', 'dart'):
-        params['data_sample_strategy'] = 'bagging'
-    if params.get('data_sample_strategy') == 'goss':
-        params['bagging_fraction'] = 1.0
-        params['bagging_freq'] = 0
-    if params.get('objective') == 'huber':
-        params['reg_sqrt'] = True
-        # params['boosting'] = 'gbdt'
-    return params
+    # Check if target needs to be log transformed. Valid for regression problems ONLY.
+    y_log = params_data.get('y_log', False)
+    mlft.log_params(params={'y_log': y_log})
 
-# Model training function for LightGBM.
-def train_lgbm_model(params_model, params_data, params_model_eval: dict, best_model=False):
-    """Train model with given parameters and return metrics"""
-    # Unpack the data parameters.
-    X_train =params_data['X_train']
-    y_train = params_data['y_train']
-    X_val = params_data['X_val']
-    y_val = params_data['y_val']
-    X_test = params_data['X_test']
-    y_test = params_data['y_test']
-
-    # Unpack model evaluation parameters.
+    # Unpack the problem type and check compatibility with log transformation.
     problem_type = params_model_eval['problem_type'] # 'regression' or 'binary_classification'
+    if problem_type != 'regression' and y_log:
+        raise ValueError("Log transformation is only applicable for regression problems.")
+
+    # Unpack the data parameters and log transform the target, if required.
+    X_train = params_data['X_train']
+    X_val = params_data['X_val']
+    X_test = params_data['X_test']
+    
+    y_train = np.log1p(params_data['y_train']) if y_log else params_data['y_train']
+    y_val = np.log1p(params_data['y_val']) if y_log else params_data['y_val']
+    # y_test = np.log1p(params_data['y_test']) if y_log else params_data['y_test']
 
     # Create LightGBM datasets.
     ds_lgbm_train = lgbm.Dataset(data=X_train, label=y_train)
@@ -66,11 +82,11 @@ def train_lgbm_model(params_model, params_data, params_model_eval: dict, best_mo
     """
 
     # Predict on the test dataset.
-    y_test_pred = model_lgbm.predict(data=X_test)
-
+    y_test_pred = np.expm1(model_lgbm.predict(data=X_test)) if y_log else model_lgbm.predict(data=X_test)
+    
     # Calculate the metrics based on the problem type.
     metrics = met.calculate_metrics(
-        y_true=y_test, 
+        y_true=params_data['y_test'], 
         y_pred=y_test_pred, 
         params_model_eval=params_model_eval,
     )
@@ -81,14 +97,13 @@ def train_lgbm_model(params_model, params_data, params_model_eval: dict, best_mo
         model_output=model_lgbm.predict(data=X_train.iloc[:1])
     )
 
-    # Rename regular metrics' and model parameters' keys and log advanced model evaluation metrics, for best model ONLY.
+    # Rename 'metrics' keys and log advanced model evaluation metrics, for best model ONLY.
     if best_model:
-        # Rename the metrics and parameters for the best model.
+        # Rename the metrics for the best model.
         metrics = {f"best_{k}": v for k, v in metrics.items()}
-        params_model = {f"best_{k}": v for k, v in params_model.items()}
 
         # Log advanced model evaluation metrics.
-        # TODO - add params_eval to classification evaluation function.
+        # TODO - add params_model_eval to classification evaluation function.
         if problem_type == 'binary_classification':
             # Log binary classification metrics.
             met.eval_binary_classification(
@@ -114,28 +129,53 @@ def train_lgbm_model(params_model, params_data, params_model_eval: dict, best_mo
             params_model_eval=params_model_eval,  # Pass the model evaluation parameters.
         )
     
-    # Define the model path for logging.
-    model_path = "best_model"  if best_model else "model" # Path to log the best model.
+    # Define the path for logging model.
+    model_path = "best_model"  if best_model else "model"
 
     # Log model metrics and model to MLflow.
-    mlft.log_metrics(metrics=metrics) # Metrics calculated on the test dataset.
-    mlft.log_model(model=model_lgbm, signature=signature, artifact_path=model_path) # Log the model with its signature.
+    mlft.log_metrics(metrics=metrics)
+    mlft.log_model(model=model_lgbm, signature=signature, model_art_path=model_path)
 
     return metrics
 
 # Objective function for Optuna to optimize the LightGBM model.
 def objective(
-    trial, 
-    params_lgbm,
-    params_data,
-    params_mlflow,
-    params_model_eval,
-    optimiser_metric
-): 
+    trial: optuna.Trial, 
+    params_lgbm: Dict[str, Dict[str, Any]],
+    params_data: Dict[str, Any],
+    params_mlflow: Dict[str, Any],
+    params_model_eval: Dict[str, Any],
+    optimiser_metric: str
+) -> float:
     """
     Objective function to optimize the LightGBM model using Optuna.
+    
+    Parameters
+    ----------
+    trial : optuna.Trial
+        Optuna trial object used for parameter suggestions.
+    params_lgbm : Dict[str, Dict[str, Any]]
+        Dictionary of LightGBM parameter configurations for optimization.
+        Each key is a parameter name, and the value is a dictionary with type and range details.
+    params_data : Dict[str, Any]
+        Dictionary containing training, validation and test data.
+    params_mlflow : Dict[str, Any]
+        Dictionary of MLflow configuration parameters.
+    params_model_eval : Dict[str, Any]
+        Dictionary of model evaluation parameters.
+    optimiser_metric : str
+        Name of the metric to optimize.
+        
+    Returns
+    -------
+    float
+        The value of the optimization metric for this trial.
+        
+    Raises
+    ------
+    ValueError
+        If an unknown parameter type is encountered.
     """
-
     # Create an empty dictionary to store the model parameters.
     params_model = {}
 
@@ -168,11 +208,8 @@ def objective(
         else:
             raise ValueError(f"Unknown parameter type: '{type_param}'")
 
-    # Ensure the parameters are compatible with LightGBM.
-    params_model = fix_lgbm_params(params=params_model)
-
     # Store the complete, fixed parameters as trial attributes
-    trial.set_user_attr('final_params', params_model)
+    trial.set_user_attr('params_model_full', params_model)
 
     # Start Mlflow run for the trial.
     with mlft.setup_mlflow(
@@ -191,12 +228,44 @@ def objective(
 
 # Optimization function to run the Optuna study.
 def run_optimization(
-    params_lgbm,
-    params_data,
-    params_mlflow,
-    params_study,
-    params_model_eval,
-):  
+    params_lgbm: Dict[str, Dict[str, Any]],
+    params_data: Dict[str, Any],
+    params_mlflow: Dict[str, Dict[str, Any]],
+    params_study: Dict[str, Any],
+    params_model_eval: Dict[str, Any],
+    params_tags: Optional[Dict[str, str]] = None
+) -> optuna.Study:
+    """
+    Run the Optuna optimization study to find optimal model parameters.
+    
+    Parameters
+    ----------
+    params_lgbm : Dict[str, Dict[str, Any]]
+        Dictionary of LightGBM parameter configurations for optimization.
+        Each parameter should have a dictionary with keys like 'type', 'low', 'high', etc.
+    params_data : Dict[str, Any]
+        Dictionary containing training, validation and test data.
+    params_mlflow : Dict[str, Dict[str, Any]]
+        Dictionary of MLflow configuration parameters including:
+        - mlflow_exp_name: Experiment name
+        - mlflow_run_name: Run name
+        - mlflow_tracking_uri: MLflow tracking server URI
+    params_study : Dict[str, Any]
+        Dictionary of Optuna study parameters including:
+        - direction: Direction of optimization ('minimize' or 'maximize')
+        - n_trials: Number of trials to run
+        - run_parallel: Boolean flag for parallel execution
+        - optimiser_metric: Metric to optimize
+    params_model_eval : Dict[str, Any]
+        Dictionary of model evaluation parameters.
+    params_tags : Optional[Dict[str, str]], default=None
+        Dictionary of tags to be logged to MLflow.
+        
+    Returns
+    -------
+    optuna.Study
+        The completed Optuna study object containing all trials.
+    """
     # Create a parent MLflow run for the entire optimization process.
     with mlft.setup_mlflow(
         experiment_name=params_mlflow['mlflow_exp_name'], 
@@ -204,8 +273,11 @@ def run_optimization(
         tracking_uri=params_mlflow['mlflow_tracking_uri'],
         nested=False
     ) as parent_run:
+        # Log the tags to MLflow.
+        if params_tags is not None:
+            mlft.log_tags(tags=params_tags)
         
-        # Define paameters for parallel or sequential runs.
+        # Define parameters for parallel or sequential runs.
         n_jobs = -1 if params_study['run_parallel'] else 1  # Use all available CPU cores for parallel execution, or single-threaded execution for simplicity.
         params_mlflow['parent_run_id'] = parent_run.info.run_id if params_study['run_parallel'] else None # Get the parent run ID for nested runs in parallel.
 
@@ -253,11 +325,8 @@ def run_optimization(
             print("Logging the best model to MLflow...\n")
             
             # Get the model parameters for the best trial, using the 'user_attrs'.
-            params_model_best = study.best_trial.user_attrs['final_params']
+            params_model_best = study.best_trial.user_attrs['params_model_full']
             
-            # Fix the best model parameters for compatibility.  
-            # params_model_best = fix_lgbm_params(params=params_model_best)
-
             # Build the best model.
             _ = train_lgbm_model(
                 params_model=params_model_best, 

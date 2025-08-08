@@ -4,7 +4,7 @@ from typing import Tuple, Optional, List, Any
 from sklearn.model_selection import train_test_split
 
 
-"""                     Functions.                     """
+"""                     User defined funtions for data operations.                     """
 
 def describe_dataset(
     X: pd.DataFrame,
@@ -36,7 +36,6 @@ def describe_dataset(
     df_describe.insert(1, 'DataType', X.dtypes.values)
     df_describe.insert(2, 'na_count', X.isna().sum().values)
     return df_describe
-
 
 def split_data(
     X: pd.DataFrame,
