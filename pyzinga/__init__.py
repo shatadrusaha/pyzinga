@@ -9,7 +9,7 @@ from .mlflow_tools import (
     log_optuna_study,
 )
 
-from .model_eval_tools import model_eval_binary_classification
+from .model_eval_tools import eval_binary_classification
 
 from .plot_tools import (
     count_plot,
@@ -27,7 +27,7 @@ __all__ = [
     "log_model",
     "log_artifact",
     "log_optuna_study",
-    "model_eval_binary_classification",
+    "eval_binary_classification",
     "count_plot",
     "histogram_plot",
     "box_plot",

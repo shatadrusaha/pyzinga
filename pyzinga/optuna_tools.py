@@ -8,7 +8,7 @@ from mlflow.models import infer_signature
 from . import mlflow_tools as mlft
 from . import model_eval_tools as met
 
-"""                     User defined funtions for Optuna.                     """
+"""                     User defined functions for Optuna.                     """
 # Model training function for LightGBM.
 def train_lgbm_model(
     params_model: Dict[str, Any],
