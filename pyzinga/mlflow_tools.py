@@ -27,23 +27,23 @@ def setup_mlflow(
 
     Parameters
     ----------
-    tracking_uri : str, optional
-        The URI to the tracking server, by default None
-    experiment_name : str, optional
-        Name of the experiment to set, by default None
-    run_id : str, optional
-        ID of the run to restore, by default None
-    run_name : str, optional
-        Name of the run, by default None
-    parent_run_id : str, optional
-        Parent run ID for nested runs, by default None
-    nested : bool, optional
-        Whether to start the run as a nested run, by default False
+    tracking_uri : Optional[str]
+        The URI to the tracking server, by default None.
+    experiment_name : Optional[str]
+        Name of the experiment to set, by default None.
+    run_id : Optional[str]
+        ID of the run to restore, by default None.
+    run_name : Optional[str]
+        Name of the run, by default None.
+    parent_run_id : Optional[str]
+        Parent run ID for nested runs, by default None.
+    nested : bool
+        Whether to start the run as a nested run, by default False.
 
     Returns
     -------
     mlflow.ActiveRun
-        Active MLflow run context
+        Active MLflow run context.
     """
     # Set tracking URI, if provided,
     if tracking_uri:
@@ -57,6 +57,25 @@ def setup_mlflow(
         run_id=run_id, run_name=run_name, nested=nested, parent_run_id=parent_run_id
     )
 
+# Function for logging tags to MLflow.
+def log_tags(
+    tags: Dict[str, Any]
+) -> None:
+    """
+    Log tags to MLflow.
+
+    Parameters
+    ----------
+    tags : Dict[str, Any]
+        Dictionary of tags to log where keys are tag names and values are tag values.
+
+    Returns
+    -------
+    None
+    """
+    for tag_name, tag_value in tags.items():
+        mlflow.set_tag(key=tag_name, value=tag_value)
+
 def log_params(params: Dict[str, Any]) -> None:
     """
     Log parameters to MLflow.
@@ -64,8 +83,7 @@ def log_params(params: Dict[str, Any]) -> None:
     Parameters
     ----------
     params : Dict[str, Any]
-        Dictionary of parameters to log where keys are parameter names
-        and values are parameter values
+        Dictionary of parameters to log where keys are parameter names and values are parameter values.
 
     Returns
     -------
@@ -81,10 +99,9 @@ def log_metrics(metrics: Dict[str, float], step: Optional[int] = None) -> None:
     Parameters
     ----------
     metrics : Dict[str, float]
-        Dictionary of metrics to log where keys are metric names
-        and values are metric values
-    step : int, optional
-        Step value to associate with the metrics, by default None
+        Dictionary of metrics to log where keys are metric names and values are metric values.
+    step : Optional[int]
+        Step value to associate with the metrics, by default None.
 
     Returns
     -------
@@ -105,13 +122,13 @@ def log_model(
     Parameters
     ----------
     model : Any
-        The LightGBM model to log
+        The LightGBM model to log.
     signature : mlflow.models.ModelSignature
-        Model signature that describes model inputs and outputs
+        Model signature that describes model inputs and outputs.
     model_art_path : str, optional
-        Path within the MLflow run's artifact directory where model will be stored, by default "model"
-    conda_env : Dict, optional
-        Conda environment specification, by default None
+        Path within the MLflow run's artifact directory where model will be stored, by default "model".
+    conda_env : Optional[Dict]
+        Conda environment specification, by default None.
 
     Returns
     -------
@@ -128,16 +145,15 @@ def log_artifact(
 ) -> None:
     """
     Save various types of artifacts including figures, dataframes, and other data objects.
-    
+
     Parameters
     ----------
     artifact : Union[plt.Figure, go.Figure, pd.DataFrame, Any]
-        The artifact to log. Can be a matplotlib figure, plotly figure, pandas DataFrame,
-        or other object that can be saved
+        The artifact to log. Can be a matplotlib figure, plotly figure, pandas DataFrame, or other object that can be saved.
     artifact_name : str
-        Name of the artifact file with extension
+        Name of the artifact file with extension.
     artifact_path : str
-        Directory within the MLflow run's artifact directory to store the artifact
+        Directory within the MLflow run's artifact directory to store the artifact.
 
     Returns
     -------
@@ -146,7 +162,7 @@ def log_artifact(
     Raises
     ------
     ValueError
-        If the file extension is unsupported for the artifact type
+        If the file extension is unsupported for the artifact type.
     """
     # Get file extension
     file_extension = pathlib.Path(artifact_name).suffix.lower()
@@ -194,15 +210,14 @@ def log_optuna_study(study: optuna.study.Study, params_study: Dict[str, Any]) ->
     Parameters
     ----------
     study : optuna.study.Study
-        The completed Optuna study object
+        The completed Optuna study object.
     params_study : Dict[str, Any]
-        Dictionary containing study parameters, must include 'n_trials'
+        Dictionary containing study parameters, must include 'n_trials'.
 
     Returns
     -------
     bool
-        True if all trials completed successfully and study was logged,
-        False otherwise
+        True if all trials completed successfully and study was logged, False otherwise.
     """
     # Log study attributes, best metric value.
     log_params(params={f"study_{k}": v for k, v in params_study.items()})

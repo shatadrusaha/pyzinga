@@ -31,6 +31,7 @@ from sklearn.metrics import (
 import matplotlib.pyplot as plt
 from typing import Dict, Any, Union
 import numpy as np
+import shap
 
 
 """                     User defined functions for model evaluation.                     """
@@ -291,3 +292,135 @@ def eval_binary_classification(
         )
 
         del metrics_model_eval
+
+# Function for SHAP analysis of a LightGBM model.
+def shap_analysis_lgbm(model, X_train, X_test, params_model_eval=None):
+    """Perform SHAP analysis on a LightGBM model and log results to MLflow."""
+    shap.initjs()
+
+    # Extract model evalauation parameters.
+    if params_model_eval is None:
+        params_model_eval = {}
+    
+    n_samples = params_model_eval.get('n_samples', 1000)  # Number of samples for SHAP analysis.
+    topn_features = params_model_eval.get('topn_features', 20)
+
+    # Create a TreeExplainer for the LightGBM model.
+    explainer = shap.TreeExplainer(model=model, feature_perturbation="tree_path_dependent")
+
+    # Mlflow artifact paths.
+    path_artifact_file = 'shap/files'
+    path_artifact_plot = 'shap/plots'
+    
+    # Calculate SHAP values for the specified number of samples from the test set.
+    X_test_sample = X_test.sample(n=n_samples, random_state=42) if n_samples < len(X_test) else X_test
+    shap_values = explainer(X=X_test_sample)
+
+    # Extract and save the feature importance based on SHAP and the model.
+    df_fea_imp = pd.DataFrame(
+        data={
+            'Feature': X_train.columns,
+            'Shap_value_abs_mean': shap_values.abs.mean(axis=0).values,
+            # 'Shap_value_abs_max': shap_values.abs.max(axis=0).values,
+            'Feature_importance_split': model.feature_importance(importance_type='split'),
+            'Feature_importance_gain': model.feature_importance(importance_type='gain'),
+        }
+    ).sort_values(by='Shap_value_abs_mean', ascending=False).reset_index(drop=True)
+    mlft.log_artifact(
+        artifact=df_fea_imp,
+        artifact_name='feature_importance_shap.csv',
+        artifact_path=path_artifact_file
+    )
+
+    ### Bar plot of shap values.
+    shap_plot_bar = shap.plots.bar(
+        shap_values=shap_values,
+        max_display=topn_features,
+        show=False,  # Do not show the plot immediately.
+    )
+
+    # Customize the plot appearance.
+    fig = shap_plot_bar.figure # Access the underlying matplotlib figure and axes.
+    ax = shap_plot_bar.axes
+
+    fig.set_size_inches(15, 8)
+    ax.set_title("Bar Plot - SHAP Feature Importance", fontsize=16)
+    ax.set_xlabel("SHAP value (absolute mean)", fontsize=14)
+    ax.set_ylabel("Feature", fontsize=14)
+    ax.tick_params(axis='both', labelsize=12)
+    plt.tight_layout(rect=[0, 0, 1, 0.97])
+    # plt.show()
+    mlft.log_artifact(
+        artifact=fig,  # Get the figure from the plot.
+        artifact_name='bar_plot.png',
+        artifact_path=path_artifact_plot
+    )
+    plt.close(fig)  # Close the bar plot figure.
+
+    ### Beeswarm plot of shap values.
+    shap_plot_beeswarm = shap.plots.beeswarm(
+        shap_values=shap_values,
+        max_display=topn_features,
+        show=False,  # Do not show the plot immediately.
+    )
+
+    # Customize the plot appearance.
+    fig = shap_plot_beeswarm.figure # Access the underlying matplotlib figure and axes.
+    ax = shap_plot_beeswarm.axes
+    
+    fig.set_size_inches(15, 8)
+    ax.set_title("Beeswarm Plot - Impact on Model Output", fontsize=16)
+    ax.set_xlabel("SHAP value", fontsize=14)
+    ax.set_ylabel("Feature", fontsize=14)
+    ax.tick_params(axis='both', labelsize=12)
+    plt.tight_layout()
+    # fig.set_constrained_layout(True)
+    # plt.show()
+    mlft.log_artifact(
+        artifact=fig,  # Get the figure from the plot.
+        artifact_name='beeswarm_plot.png',
+        artifact_path=path_artifact_plot
+    )
+    plt.close(fig)  # Close the beeswarm plot figure.
+
+    ### Scatter plots for top features.
+    imp_types = df_fea_imp.columns[1:]  # Get the importance types from the DataFrame.
+    
+    for type in imp_types:
+        # Filter the top features based on the current importance type.
+        temp_fe = df_fea_imp[['Feature', type]].sort_values(by=type, ascending=False).reset_index(drop=True)
+        temp_fe = temp_fe.head(topn_features).reset_index(drop=True)
+        
+        # Get the feature names for the top features.
+        features = temp_fe['Feature'].tolist()
+        
+        # 2x2 grid scatter plots for top features.
+        for i in range(0, topn_features, 4):
+            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+            axes = axes.flatten()
+            for j in range(4):
+                idx = i + j
+                if idx < topn_features:
+                    feature = features[idx]
+                    shap.plots.scatter(
+                        shap_values=shap_values[:, feature],
+                        show=False,
+                        ax=axes[j]
+                    )
+                    axes[j].axhline(y=0, color='red', linestyle='--')
+                    axes[j].set_xlabel(feature, fontsize=10)
+                    axes[j].set_ylabel("SHAP value", fontsize=10)
+                else:
+                    axes[j].axis('off')
+            
+            # Set a main title for the 2x2 grid.
+            fig.suptitle(f"Dependence Scatter Plot (top features - {type.lower().replace('_', ' ')})", fontsize=16)
+            plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for suptitle
+            # plt.show()
+            # Save the 2x2 grid as a single artifact.
+            mlft.log_artifact(
+                artifact=fig,
+                artifact_name=f"scatter_plot_top_features_{type.lower()}_{i//4+1}.png",
+                artifact_path=path_artifact_plot
+            )
+            plt.close(fig)
