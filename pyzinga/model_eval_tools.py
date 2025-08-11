@@ -34,6 +34,18 @@ import numpy as np
 import shap
 
 
+"""                     Define settings for plotting.                       """
+# Default plotting parameters for plots.
+DEFAULT_FIGSIZE = (12, 10)
+# DEFAULT_HUE = None
+# DEFAULT_EDGECOLOR = "black"
+# DEFAULT_LEGEND = False
+# DEFAULT_STYLE = "darkgrid"
+# DEFAULT_PALETTE = "deep"
+# DEFAULT_SAVEDIR = None
+# DEFAULT_CMAP = "coolwarm"
+
+
 """                     User defined functions for model evaluation.                     """
 # Function for metric calculation.
 def calculate_metrics(
@@ -187,7 +199,7 @@ def eval_binary_classification(
             title=f"Feature Importance Plot - '{imp_type}'",
             importance_type=imp_type,
             max_num_features=20,
-            figsize=(10, 8),
+            figsize=DEFAULT_FIGSIZE,
         )
 
         mlft.log_artifact(
@@ -195,6 +207,7 @@ def eval_binary_classification(
             artifact_name=f"feature_importance_{imp_type}.png",
             artifact_path=path_artifact_file,
         )
+        plt.close(plot_feature_imp.figure)  # Close the feature importance plot figure.
 
     # Calculate various metrics.
     dataset_type = ["train", "val", "test"]
@@ -221,9 +234,7 @@ def eval_binary_classification(
         mlft.log_metrics(metrics=metrics_model_eval)
 
         # Precision-recall curve.
-        _, ax = plt.subplots(
-            figsize=(10, 8)
-        )  # Create a custom figure and axes. width=10, height=8
+        _, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)  # Create a custom figure and axes.
         precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_preds)
         pr_auc_score = auc(recall, precision)  # precision-recall AUC score
         disp = PrecisionRecallDisplay(precision=precision, recall=recall)
@@ -234,11 +245,10 @@ def eval_binary_classification(
             artifact_name=f"precision_recall_curve_{dataset}.png",
             artifact_path=path_artifact_plot,
         )
+        plt.close(disp.figure_)  # Close the precision-recall curve figure.
 
         # ROC-AUC curve.
-        _, ax = plt.subplots(
-            figsize=(10, 8)
-        )  # Create a custom figure and axes. width=10, height=8
+        _, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)  # Create a custom figure and axes.
         fpr, tpr, _ = roc_curve(y_true=y_true, y_score=y_preds)
         disp = RocCurveDisplay(
             fpr=fpr, tpr=tpr, roc_auc=float(roc_auc_score(y_true, y_preds))
@@ -252,11 +262,10 @@ def eval_binary_classification(
             artifact_name=f"roc_curve_{dataset}.png",
             artifact_path=path_artifact_plot,
         )
+        plt.close(disp.figure_)  # Close the ROC curve figure.
 
         # Confusion matrix.
-        _, ax = plt.subplots(
-            figsize=(10, 8)
-        )  # Create a custom figure and axes. width=10, height=8
+        _, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)  # Create a custom figure and axes.
         cm = confusion_matrix(y_true=y_true, y_pred=y_preds_binary)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot(ax=ax, cmap="Blues", values_format="d")  # Get the axes object
@@ -266,6 +275,7 @@ def eval_binary_classification(
             artifact_name=f"confusion_matrix_{dataset}.png",
             artifact_path=path_artifact_plot,
         )
+        plt.close(disp.figure_)  # Close the confusion matrix figure.
 
         # Classification report.
         cr = classification_report(
@@ -294,8 +304,33 @@ def eval_binary_classification(
         del metrics_model_eval
 
 # Function for SHAP analysis of a LightGBM model.
-def shap_analysis_lgbm(model, X_train, X_test, params_model_eval=None):
-    """Perform SHAP analysis on a LightGBM model and log results to MLflow."""
+def shap_analysis_lgbm(
+    model: lgbm.Booster,
+    X_train: pd.DataFrame,
+    X_test: pd.DataFrame,
+    params_model_eval: dict = None
+) -> None:
+    """
+    Perform SHAP analysis on a LightGBM model and log results to MLflow.
+
+    Parameters
+    ----------
+    model : lgbm.Booster
+        Trained LightGBM model.
+    X_train : pd.DataFrame
+        Training features used for model fitting.
+    X_test : pd.DataFrame
+        Test features for SHAP value calculation.
+    params_model_eval : dict, optional
+        Dictionary with SHAP analysis parameters. Can include:
+            - 'n_samples': int, number of test samples to use (default: 1000)
+            - 'topn_features': int, number of top features to display (default: 20)
+
+    Returns
+    -------
+    None
+        Logs SHAP artifacts and plots to MLflow.
+    """
     shap.initjs()
 
     # Extract model evalauation parameters.
@@ -343,12 +378,12 @@ def shap_analysis_lgbm(model, X_train, X_test, params_model_eval=None):
     fig = shap_plot_bar.figure # Access the underlying matplotlib figure and axes.
     ax = shap_plot_bar.axes
 
-    fig.set_size_inches(15, 8)
+    fig.set_size_inches(DEFAULT_FIGSIZE[0], DEFAULT_FIGSIZE[1])
     ax.set_title("Bar Plot - SHAP Feature Importance", fontsize=16)
     ax.set_xlabel("SHAP value (absolute mean)", fontsize=14)
     ax.set_ylabel("Feature", fontsize=14)
     ax.tick_params(axis='both', labelsize=12)
-    plt.tight_layout(rect=[0, 0, 1, 0.97])
+    plt.tight_layout()
     # plt.show()
     mlft.log_artifact(
         artifact=fig,  # Get the figure from the plot.
@@ -367,14 +402,13 @@ def shap_analysis_lgbm(model, X_train, X_test, params_model_eval=None):
     # Customize the plot appearance.
     fig = shap_plot_beeswarm.figure # Access the underlying matplotlib figure and axes.
     ax = shap_plot_beeswarm.axes
-    
-    fig.set_size_inches(15, 8)
+
+    fig.set_size_inches(DEFAULT_FIGSIZE[0], DEFAULT_FIGSIZE[1])
     ax.set_title("Beeswarm Plot - Impact on Model Output", fontsize=16)
     ax.set_xlabel("SHAP value", fontsize=14)
     ax.set_ylabel("Feature", fontsize=14)
     ax.tick_params(axis='both', labelsize=12)
     plt.tight_layout()
-    # fig.set_constrained_layout(True)
     # plt.show()
     mlft.log_artifact(
         artifact=fig,  # Get the figure from the plot.
@@ -393,10 +427,13 @@ def shap_analysis_lgbm(model, X_train, X_test, params_model_eval=None):
         
         # Get the feature names for the top features.
         features = temp_fe['Feature'].tolist()
-        
+
+        # Update the number of top features to plot.
+        topn_features = len(features) if len(features) < topn_features else topn_features
+
         # 2x2 grid scatter plots for top features.
         for i in range(0, topn_features, 4):
-            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+            fig, axes = plt.subplots(2, 2, figsize=DEFAULT_FIGSIZE)
             axes = axes.flatten()
             for j in range(4):
                 idx = i + j

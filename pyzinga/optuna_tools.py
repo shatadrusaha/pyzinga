@@ -17,28 +17,27 @@ def train_lgbm_model(
     best_model: bool = False
 ) -> Dict[str, float]:
     """
-    Train LightGBM model with given parameters and return metrics.
-    
+    Train a LightGBM model with given parameters and return evaluation metrics.
+
     Parameters
     ----------
     params_model : Dict[str, Any]
         Dictionary of LightGBM model parameters.
     params_data : Dict[str, Any]
-        Dictionary containing training, validation and test data.
+        Dictionary containing training, validation, and test data.
         Should include 'X_train', 'y_train', 'X_val', 'y_val', 'X_test', 'y_test'.
         Optional 'y_log' boolean flag for log transformation of target (regression only).
     params_model_eval : Dict[str, Any]
         Dictionary of model evaluation parameters.
         Should include 'problem_type' specifying 'regression' or 'binary_classification'.
-    best_model : bool, default=False
-        Flag to indicate if this is the best model from optimization.
-        If True, additional evaluation metrics and model analysis will be logged.
-        
+    best_model : bool, optional
+        If True, logs additional evaluation metrics and model analysis.
+
     Returns
     -------
     Dict[str, float]
         Dictionary of evaluation metrics calculated on the test dataset.
-        
+
     Raises
     ------
     ValueError
@@ -149,7 +148,7 @@ def objective(
 ) -> float:
     """
     Objective function to optimize the LightGBM model using Optuna.
-    
+
     Parameters
     ----------
     trial : optuna.Trial
@@ -158,19 +157,19 @@ def objective(
         Dictionary of LightGBM parameter configurations for optimization.
         Each key is a parameter name, and the value is a dictionary with type and range details.
     params_data : Dict[str, Any]
-        Dictionary containing training, validation and test data.
+        Dictionary containing training, validation, and test data.
     params_mlflow : Dict[str, Any]
         Dictionary of MLflow configuration parameters.
     params_model_eval : Dict[str, Any]
         Dictionary of model evaluation parameters.
     optimiser_metric : str
         Name of the metric to optimize.
-        
+
     Returns
     -------
     float
         The value of the optimization metric for this trial.
-        
+
     Raises
     ------
     ValueError
@@ -237,30 +236,30 @@ def run_optimization(
 ) -> optuna.Study:
     """
     Run the Optuna optimization study to find optimal model parameters.
-    
+
     Parameters
     ----------
     params_lgbm : Dict[str, Dict[str, Any]]
         Dictionary of LightGBM parameter configurations for optimization.
         Each parameter should have a dictionary with keys like 'type', 'low', 'high', etc.
     params_data : Dict[str, Any]
-        Dictionary containing training, validation and test data.
+        Dictionary containing training, validation, and test data.
     params_mlflow : Dict[str, Dict[str, Any]]
         Dictionary of MLflow configuration parameters including:
-        - mlflow_exp_name: Experiment name
-        - mlflow_run_name: Run name
-        - mlflow_tracking_uri: MLflow tracking server URI
+            - mlflow_exp_name: Experiment name
+            - mlflow_run_name: Run name
+            - mlflow_tracking_uri: MLflow tracking server URI
     params_study : Dict[str, Any]
         Dictionary of Optuna study parameters including:
-        - direction: Direction of optimization ('minimize' or 'maximize')
-        - n_trials: Number of trials to run
-        - run_parallel: Boolean flag for parallel execution
-        - optimiser_metric: Metric to optimize
+            - direction: Direction of optimization ('minimize' or 'maximize')
+            - n_trials: Number of trials to run
+            - run_parallel: Boolean flag for parallel execution
+            - optimiser_metric: Metric to optimize
     params_model_eval : Dict[str, Any]
         Dictionary of model evaluation parameters.
-    params_tags : Optional[Dict[str, str]], default=None
+    params_tags : Optional[Dict[str, str]], optional
         Dictionary of tags to be logged to MLflow.
-        
+
     Returns
     -------
     optuna.Study
@@ -336,4 +335,3 @@ def run_optimization(
             )
             
     return study
-

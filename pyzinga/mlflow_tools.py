@@ -219,9 +219,30 @@ def log_optuna_study(study: optuna.study.Study, params_study: Dict[str, Any]) ->
     bool
         True if all trials completed successfully and study was logged, False otherwise.
     """
+    # Mlflow artifact paths.
+    path_artifact_file = 'optuna/files'
+    path_artifact_plot = 'optuna/plots'
+
     # Log study attributes, best metric value.
     log_params(params={f"study_{k}": v for k, v in params_study.items()})
     log_metrics(metrics={"best_value": study.best_value})
+
+    # Get the study details in a DataFrame and log it as an artifact.
+    df_study = pd.DataFrame(
+        data={
+            "number": [trial.number for trial in study.trials],
+            "state": [trial.state.name for trial in study.trials],
+            "value": [trial.value for trial in study.trials],
+            "datatime_start": [trial.datetime_start.isoformat() if trial.datetime_start else None for trial in study.trials],
+            "datetime_complete": [trial.datetime_complete.isoformat() if trial.datetime_complete else None for trial in study.trials],
+            "duration_hms": [
+                str(timedelta(seconds=trial.duration.total_seconds())).split(sep=".")[0] 
+                if trial.duration else None for trial in study.trials
+            ],
+            "params": [trial.params for trial in study.trials],
+        }
+    )
+    log_artifact(artifact=df_study, artifact_name="study_details.csv", artifact_path=path_artifact_file)
 
     # Get the number of trials that completed successfully.
     trial_count_complete = sum(
@@ -234,32 +255,25 @@ def log_optuna_study(study: optuna.study.Study, params_study: Dict[str, Any]) ->
             f"\nAll {trial_count_complete} trials completed successfully.\nLogging the study results to MLflow...\n"
         )
 
-        #  Get the study details in a DataFrame and log it as an artifact.
-        df_study = pd.DataFrame(
-            data={
-                "number": [trial.number for trial in study.trials],
-                "state": [trial.state.name for trial in study.trials],
-                "value": [trial.value for trial in study.trials],
-                "datatime_start": [trial.datetime_start.isoformat() if trial.datetime_start else None for trial in study.trials],
-                "datetime_complete": [trial.datetime_complete.isoformat() if trial.datetime_complete else None for trial in study.trials],
-                "duration_hms": [
-                    str(timedelta(seconds=trial.duration.total_seconds())).split(sep=".")[0] 
-                    if trial.duration else None for trial in study.trials
-                ],
-                "params": [trial.params for trial in study.trials],
-            }
-        )
-        log_artifact(artifact=df_study, artifact_name="study_details.csv", artifact_path="optuna_study")
-
-        # Log optimisation history, parameter importances, and parallel coordinate plots.
+        # Log optimisation history, parameter importances, parallel coordinate and slice plots.
         fig = vis.plot_optimization_history(study=study)
-        log_artifact(artifact=fig, artifact_name="optimization_history.html", artifact_path="optuna_plots")
+        log_artifact(artifact=fig, artifact_name="optimization_history.html", artifact_path=path_artifact_plot)
         
         fig = vis.plot_param_importances(study=study)
-        log_artifact(artifact=fig, artifact_name="param_importances.html", artifact_path="optuna_plots")
+        log_artifact(artifact=fig, artifact_name="param_importances.html", artifact_path=path_artifact_plot)
         
         fig = vis.plot_parallel_coordinate(study=study)
-        log_artifact(artifact=fig, artifact_name="parallel_coordinate.html", artifact_path="optuna_plots")
+        log_artifact(artifact=fig, artifact_name="parallel_coordinate.html", artifact_path=path_artifact_plot)
+
+        fig = vis.plot_slice(study=study)
+        log_artifact(artifact=fig, artifact_name="slice_plot.html", artifact_path=path_artifact_plot)
+
+        # Log the study as an Optuna study artifact.
+        log_artifact(
+            artifact=study,
+            artifact_name="optuna_study.pkl",
+            artifact_path=path_artifact_file
+        )
 
         return True
         

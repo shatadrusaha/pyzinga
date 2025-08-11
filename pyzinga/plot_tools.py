@@ -38,9 +38,11 @@ def count_plot(
     df : pd.DataFrame
         Input DataFrame.
     col : str
-        Column name to plot.
-    figsize : tuple of int, optional
+        Column name to plot (categorical).
+    figsize : Tuple[int, int], optional
         Figure size, by default (10, 8).
+    save_dir : Optional[str], optional
+        Directory to save the plot. If None, plot is not saved.
     **kwargs
         Additional keyword arguments passed to seaborn.countplot.
 
@@ -87,7 +89,6 @@ def count_plot(
     plt.show()
     plt.close(fig)
 
-
 # Function for histogram plot.
 def histogram_plot(
     df: pd.DataFrame,
@@ -105,10 +106,12 @@ def histogram_plot(
     df : pd.DataFrame
         Input DataFrame.
     col : str
-        Column name to plot.
-    figsize : tuple of int, optional
+        Column name to plot (numerical).
+    figsize : Tuple[int, int], optional
         Figure size, by default (10, 8).
-    prefix : str, optional
+    save_dir : Optional[str], optional
+        Directory to save the plot. If None, plot is not saved.
+    prefix : Optional[str], optional
         Prefix for the plot title and filename.
     **kwargs
         Additional keyword arguments passed to seaborn.histplot.
@@ -149,7 +152,6 @@ def histogram_plot(
     plt.show()
     plt.close(fig)
 
-
 # Function for box plot.
 def box_plot(
     df: pd.DataFrame,
@@ -168,15 +170,17 @@ def box_plot(
     ----------
     df : pd.DataFrame
         Input DataFrame.
-    x_col : str, optional
+    x_col : Optional[str], optional
         Column name for x-axis (categorical).
-    y_col : str, optional
+    y_col : Optional[str], optional
         Column name for y-axis (numerical).
-    yscale : str, optional
+    yscale : Optional[str], optional
         Scale for y-axis ('log' for log scale).
-    figsize : tuple of int, optional
+    figsize : Tuple[int, int], optional
         Figure size, by default (10, 8).
-    prefix : str, optional
+    save_dir : Optional[str], optional
+        Directory to save the plot. If None, plot is not saved.
+    prefix : Optional[str], optional
         Prefix for the plot title and filename.
     **kwargs
         Additional keyword arguments passed to seaborn.boxplot.
@@ -256,7 +260,6 @@ def box_plot(
     plt.show()
     plt.close(fig)
 
-
 # Function for correlation heatmap.
 def corr_heatmap_plot(
     df: pd.DataFrame,
@@ -272,9 +275,9 @@ def corr_heatmap_plot(
     ----------
     df : pd.DataFrame
         Input DataFrame.
-    save_dir : str, optional
+    save_dir : Optional[str], optional
         Directory to save the plot. If None, plot is not saved.
-    figsize : tuple of int, optional
+    figsize : Tuple[int, int], optional
         Figure size, by default (10, 8).
     mask_upper : bool, optional
         If True, mask the upper triangle of the heatmap.

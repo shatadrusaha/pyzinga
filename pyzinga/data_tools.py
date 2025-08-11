@@ -43,7 +43,7 @@ def split_data(
     split_test: float = 0.2,
     split_val: Optional[float] = None,
     random_state: int = 14
-) -> Tuple:
+) -> Tuple[Any, ...]:
     """
     Split the dataset into training, (optional) validation, and test sets.
 
