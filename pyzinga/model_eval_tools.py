@@ -420,6 +420,9 @@ def shap_analysis_lgbm(
     ### Scatter plots for top features.
     imp_types = df_fea_imp.columns[1:]  # Get the importance types from the DataFrame.
     
+    # Identify categorical columns from X_train
+    cols_cat = X_train.select_dtypes(include=['category', 'object']).columns.tolist()
+    
     for type in imp_types:
         # Filter the top features based on the current importance type.
         temp_fe = df_fea_imp[['Feature', type]].sort_values(by=type, ascending=False).reset_index(drop=True)
@@ -447,6 +450,10 @@ def shap_analysis_lgbm(
                     axes[j].axhline(y=0, color='red', linestyle='--')
                     axes[j].set_xlabel(feature, fontsize=10)
                     axes[j].set_ylabel("SHAP value", fontsize=10)
+                    # Rotate x-labels if feature is categorical
+                    if feature in cols_cat:
+                        for label in axes[j].get_xticklabels():
+                            label.set_rotation(45)
                 else:
                     axes[j].axis('off')
             
