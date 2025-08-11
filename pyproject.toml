@@ -6,10 +6,11 @@ readme = "README.md"
 authors = [
     { name = "Shaz", email = "shatadrusaha@gmail.com" }
 ]
-requires-python = "==3.12.*"
+requires-python = ">=3.12"
 dependencies = [
     "lightgbm>=4.6.0",
     "matplotlib>=3.10.3",
+    "mlflow>=3.1.4",
     "optuna>=4.4.0",
     "pandas>=2.3.1",
     "plotly>=6.2.0",
